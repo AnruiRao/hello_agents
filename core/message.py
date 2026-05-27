@@ -5,6 +5,8 @@ from pydantic import BaseModel
 MessageRole = Literal["system", "user", "assistant", "tool"]
 
 class Message(BaseModel):
+    """消息类"""
+
     content: str
     role: MessageRole
     timestamp: datetime = None
@@ -19,6 +21,7 @@ class Message(BaseModel):
         )
     
     def to_dict(self) -> Dict[str, Any]:
+        """转换为字典格式（OpenAI API格式）"""
         return {
             "role": self.role,
             "content": self.content

@@ -1,5 +1,5 @@
 .env
-.hello_agent
+.hello_agents
 
 __pycache__/
 *.pyc

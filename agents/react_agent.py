@@ -51,7 +51,7 @@ class ReActAgent:
             )
 
             messages = [{"role":"user","content":prompt}]
-            response_text = self.llm_client.think(messages=messages)
+            response_text = self.llm_client.invoke(messages=messages)
 
             if not response_text:
                 print("错误:LLM未能返回有效响应。")

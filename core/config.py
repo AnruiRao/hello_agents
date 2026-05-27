@@ -3,8 +3,9 @@ from pydantic import BaseModel
 from typing import Dict, Any
 
 class Config(BaseModel):
+    """HelloAgents配置类"""
 
-    default_model: str = "qwen3.5-plus-2026-02-15"
+    default_model: str = "deepseek-v3"
     default_provider: str = "qwen"
     temperature: float = 0.7
     max_tokens: int | None = None
@@ -17,6 +18,7 @@ class Config(BaseModel):
 
     @classmethod
     def from_env(cls) -> "Config":
+        """从环境变量创建配置"""
         return cls(
             debug=os.getenv("DEBUG","false").lower() == "true",
             log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -25,4 +27,5 @@ class Config(BaseModel):
         )
     
     def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
         return self.model_dump()

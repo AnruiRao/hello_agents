@@ -49,7 +49,7 @@ class Planner:
         messages = [{"role":"user","content":prompt}]
 
         print("--- 正在生成计划 ---")
-        response_text = self.llm_client.think(messages=messages) or ""
+        response_text = self.llm_client.invoke(messages=messages) or ""
         print(f"✅ 计划已生成:\n{response_text}")
 
         try:
@@ -88,7 +88,7 @@ class Executor:
 
             messages = [{"role":"user", "content":prompt}]
 
-            response_text = self.llm_client.think(messages=messages) or ""
+            response_text = self.llm_client.invoke(messages=messages) or ""
             history += f"步骤 {i+1}： {step}\n结果： {response_text}\n\n" 
             print(f"✅ 步骤 {i+1} 已完成，结果: {response_text}")
 
