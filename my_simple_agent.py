@@ -117,3 +117,63 @@ class MysimpleAgent(SimpleAgent):
         print(f"✅ {self.name} 响应完成")
 
         return final_response
+
+    def _parse_tool_calls(self, text: str) -> list:
+        """解析文本中的工具调用"""
+        pattern = r'\[TOOL_CALL:([^:]+):([^\]]+)\]'
+        matches = re.findall(pattern, text)
+
+        tool_calls = []
+        for tool_name, parameters in matches:
+            tool_calls.append({
+                'tool_name': tool_name.strip(),
+                'parameters': parameters.strip(),
+                'original': f'[TOOL_CALL: {tool_name}:{parameters}]'
+            })
+        
+        return tool_calls
+    
+    def _execute_tool_call(self, tool_name: str, parameters: str) -> str:
+        """执行工具调用"""
+        if not self.tool_registry:
+            return f"❌ 错误:未配置工具注册表"
+        
+        try:
+            if tool_name == 'calculator':
+                result = self.tool_registry.execute_tool(tool_name, parameters)
+            else:
+                param_dict = self._parse_tool_parameters(tool_name, parameters)
+                tool = self.tool_registry.get_tool(tool_name)
+                if not tool:
+                    return f"❌ 错误:未找到工具 '{tool_name}'"
+                result = tool.run(param_dict)
+            return f"🔧 工具 {tool_name} 执行结果:\n{result}"
+        except Exception as e:
+            return f"❌ 工具调用失败:{str(e)}"
+                
+
+
+    def _parse_tool_parameters(self, tool_name: str, parameters:str) -> dict:
+        """智能解析工具参数"""
+        param_dict = {}
+
+        if '=' in parameters:
+            if ',' in parameters:
+                pairs = parameters.split(',')
+                for pair in pairs:
+                    if '=' in pair:
+                        key, value = pair.split('=', 1)
+                        param_dict[key.strip()] = value.strip()
+            else:
+                key, value = parameters.split('=', 1)
+                param_dict[key.strip()] = value.split()
+        else:
+            if tool_name == 'search':
+                param_dict = {'query': parameters}
+            elif tool_name == 'memory':
+                param_dict = {'action': 'search', 'query': parameters}
+            else:
+                param_dict = {'input': parameters}
+
+        return param_dict
+

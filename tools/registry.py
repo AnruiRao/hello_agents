@@ -68,6 +68,38 @@ class ToolRegistry:
         """获取所有Tool对象"""
         return list(self._tools.values())
 
+    def execute_tool(self, name: str, input_text: str) ->str:
+        """
+        执行工具
+
+        Args:
+            name: 工具名称
+            input_text: 输入参数
+
+        Returns:
+            工具执行结果
+        """
+        if name in self._tools:
+            tool = self._tools[name]
+            try:
+                return tool.run({"input": input_text})
+            except Exception as e:
+                return f"错误：执行工具 '{name}' 时发生异常: {str(e)}"
+
+        elif name in self._tool_functions:
+            func = self._tool_functions[name]["func"]
+            try:
+                return func(input_text)
+            except Exception as e:
+                return f"错误：执行工具 '{name}' 时发生异常: {str(e)}"
+        
+        else:
+            return f"错误：未找到名为 '{name}' 的工具。"
+
+
+
+
+
     # def to_openai_schema(self) -> Dict[str, Any]:
     #     """转换为 OpenAI function calling schema 格式
 
