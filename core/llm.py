@@ -36,7 +36,7 @@ class HelloAgentsLLM:
         
         self.client = self._create_client()
 
-    def think(self, messages:List[Dict[str, str]], temperature:float |None = None) -> Iterator[str]:
+    def think(self, messages:List[Dict[str, str]], temperature:float | None = None) -> Iterator[str]:
         print(f"🧠 正在调用 {self.model} 模型...")
         try:
             response = self.client.chat.completions.create(
@@ -51,6 +51,7 @@ class HelloAgentsLLM:
                 content = chunk.choices[0].delta.content or ""
                 if content:
                     print(content, end="",flush=True)
+                    yield content
             print()
         except Exception as e:
             print(f"❌ 调用LLM API时发生错误: {e}")
@@ -81,9 +82,10 @@ class HelloAgentsLLM:
             return resolve_apiKey, resolve_baseUrl
 
     def _create_client(self) -> OpenAI:
-        return OpenAI(self.apiKey,
-                      self.baseUrl,
-                      self.timeout
+        return OpenAI(
+            api_key=self.apiKey,
+            base_url=self.baseUrl,
+            timeout=self.timeout
         )
     
     def invoke(self, messages:List[Dict[str, str]], **kwargs) -> str:
@@ -98,3 +100,22 @@ class HelloAgentsLLM:
             return response.choices[0].message.content
         except Exception as e:
             raise HelloAgentsException(f"LLM调用失败: {str(e)}")
+
+    def stream_invoke(self, messages: List[Dict[str, str]], **kwargs) -> Iterator[str]:
+        """
+        流式调用LLM的别名方法，与think方法功能完全相同。
+
+        保持向后兼容性。
+
+        参数:
+            messages: 消息列表，格式为 [{"role": "user", "content": "你好"}, ...]
+            **kwargs: 支持temperature参数，其他参数会被忽略
+
+        返回:
+            Iterator[str]: 流式返回的文本片段迭代器
+
+        异常:
+            HelloAgentsException: 当LLM调用失败时抛出
+        """
+        temperature = kwargs.get('temperature')
+        yield from self.think(messages, temperature)

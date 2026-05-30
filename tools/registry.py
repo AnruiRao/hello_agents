@@ -39,6 +39,23 @@ class ToolRegistry:
         }
         print(f"✅ 工具 '{name}' 已注册。")
 
+    def unregister(self, name: str):
+        """注销工具"""
+        if name in self._tools:
+            del self._tools[name]
+            print(f"🗑️ 工具 '{name}' 已注销。")
+        elif name in self._tool_functions:
+            del self._tool_functions[name]
+            print(f"🗑️ 工具 '{name}' 已注销。")
+        else:
+            print(f"⚠️ 工具 '{name}' 不存在。")
+
+    def clear(self):
+        """清空所有工具"""
+        self._tools.clear(),
+        self._tool_functions.clear()
+        print("🧹 所有工具已清空。")
+
     def get_tool(self, name: str) -> Tool | None:
         """获取Tool对象"""
         return self._tools.get(name)
@@ -96,6 +113,7 @@ class ToolRegistry:
         else:
             return f"错误：未找到名为 '{name}' 的工具。"
 
+global_registry = ToolRegistry()
 
 
 

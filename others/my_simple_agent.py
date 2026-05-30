@@ -1,14 +1,15 @@
-from .core.llm import HelloAgentsLLM
-from .agents.simple_agent import SimpleAgent
-from .core.config import Config
-from typing import TYPE_CHECKING
+from __future__ import annotations
+from core.llm import HelloAgentsLLM
+from agents.simple_agent import SimpleAgent
+from core.config import Config
+from typing import TYPE_CHECKING, Iterator
 
-from .core.message import Message
+from core.message import Message
 
 import re
 
 if TYPE_CHECKING:
-    from .tools.registry import ToolRegistry
+    from tools.registry import ToolRegistry
 
 class MysimpleAgent(SimpleAgent):
 
@@ -18,7 +19,7 @@ class MysimpleAgent(SimpleAgent):
             llm: HelloAgentsLLM,
             system_prompt: str | None = None,
             config: Config | None = None,
-            tool_registry: 'ToolRegistry' | None = None,
+            tool_registry: ToolRegistry | None = None,
             enable_tool_calling: bool = True
     ):
         super().__init__(name, llm, system_prompt, config)
@@ -177,3 +178,22 @@ class MysimpleAgent(SimpleAgent):
 
         return param_dict
 
+    def stream_run(self, input_text: str, **kwargs) -> Iterator[str]:
+            """
+            自定义的流式运行方法
+            """
+            print(f"🌊 {self.name} 开始流式处理: {input_text}")
+            messages = self._build_messages(input_text)
+            
+            full_response = ""
+            print("📝 实时响应: ", end="")
+            for chunk in self.llm.stream_invoke(messages, **kwargs):
+                full_response += chunk
+                print(chunk, end="", flush=True)
+                yield chunk
+
+            print()
+
+            self.add_message(Message(input_text, "user"))
+            self.add_message(Message(full_response, "assistant"))
+            print(f"✅ {self.name} 流式响应完成")

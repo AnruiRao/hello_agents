@@ -1,9 +1,10 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Optional
 from .message import Message
 from .llm import HelloAgentsLLM
 from .config import Config
-from ..tools.registry import ToolRegistry
+from tools.registry import ToolRegistry
 
 class Agent(ABC):
 
@@ -13,13 +14,13 @@ class Agent(ABC):
             llm: HelloAgentsLLM,
             system_prompt: str | None = None,
             config: Config | None = None,
-            tool_registry: 'ToolRegistry' | None = None
+            tool_registry: ToolRegistry | None = None
     ):
         self.name = name
         self.llm = llm
         self.system_prompt = system_prompt
         self.config = config or Config()
-        self._history = list[Message] = []
+        self._history: list[Message] = []
 
         self.tool_registry = tool_registry
 
@@ -36,7 +37,7 @@ class Agent(ABC):
         """清空历史记录"""
         self._history.clear()
 
-    def get_history(self) -> List[Message]:
+    def get_history(self) -> list[Message]:
         """获取历史记录"""
         return self._history.copy()
     
