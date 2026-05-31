@@ -72,7 +72,7 @@ class ToolRegistry:
         for tool in self._tools.values():
             descriptions.append(f"- {tool.name}: {tool.description}")
 
-        for name, info in self._tool_functions:
+        for name, info in self._tool_functions.items():
             descriptions.append(f"- {name}: {info['description']}")
 
         return "\n".join(descriptions) if descriptions else "暂无可用工具"

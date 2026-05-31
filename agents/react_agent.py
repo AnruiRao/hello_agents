@@ -1,96 +1,122 @@
+from __future__ import annotations
 from core.llm import HelloAgentsLLM
-from tools.executor import ToolExecutor
+# from tools.executor import ToolExecutor
 import re
+from typing import TYPE_CHECKING, List
+from core.agent import Agent
+from core.config import Config
+from core.message import Message
 
 REACT_PROMPT_TEMPLATE = """
-请注意，你是一个有能力调用外部工具的智能助手。
+你是一个具备推理和行动能力的AI助手。你可以通过思考分析问题，然后调用合适的工具来获取信息，最终给出准确的答案。
 
-可用工具如下:
+## 可用工具
 {tools}
 
-请严格按照以下格式进行回应:
-Thought: 你的思考过程，用于分析问题、拆解任务和规划下一步行动。
-Action: 你决定采取的行动，必须是以下格式之一:
-- `{{tool_name}}[{{tool_input}}]`:调用一个可用工具。
-- `Finish[最终答案]`:当你认为已经获得最终答案时。
-- 当你收集到足够的信息，能够回答用户的最终问题时，你必须在Action:字段后使用 Finish[最终答案] 来输出最终答案。
+## 工作流程
+请严格按照以下格式进行回应，每次只能执行一个步骤:
 
-现在，请开始解决以下问题:
-Question: {question}
-History: {history}
+Thought: 分析当前问题，思考需要什么信息或采取什么行动。
+Action: 选择一个行动，格式必须是以下之一:
+- `{{tool_name}}[{{tool_input}}]` - 调用指定工具
+- `Finish[最终答案]` - 当你有足够信息给出最终答案时
+
+## 重要提醒
+1. 每次回应必须包含Thought和Action两部分
+2. 工具调用的格式必须严格遵循:工具名[参数]
+3. 只有当你确信有足够信息回答问题时，才使用Finish
+4. 如果工具返回的信息不够，继续使用其他工具或相同工具的不同参数
+
+## 当前任务
+**Question:** {question}
+
+## 执行历史
+{history}
+
+现在开始你的推理和行动:
 """
 
+if TYPE_CHECKING:
+    from tools.registry import ToolRegistry
 
-
-class ReActAgent:
-    def __init__(self, llm_client: HelloAgentsLLM, tool_executer: ToolExecutor, max_steps: int = 5):
-        self.llm_client = llm_client
-        self.tool_executer = tool_executer
+class ReActAgent(Agent):
+    def __init__(
+        self, 
+        name: str,
+        llm: HelloAgentsLLM,
+        tool_registry: ToolRegistry | None = None,
+        system_prompt: str | None = None,
+        config: Config | None = None,
+        max_steps: int = 5,
+        custom_prompt: str | None = None
+    ):
+        super().__init__(name, llm, system_prompt, config)
+        self.tool_registry = tool_registry
         self.max_steps = max_steps
-        self.history = []
+        self.current_history:List[str] = []
+        self.prompt_template = custom_prompt if custom_prompt else REACT_PROMPT_TEMPLATE 
     
-    def run(self, question: str | None = None):
+    def run(self, input_text: str, **kwargs) -> str:
         """
         运行ReAct智能体来回答一个问题。
         """
-        self.history = []
-        current_step = 0
-
-        tools_desc = self.tool_executer.getAvailableTools()
+        self.current_history = []
+        current_step = 0    
 
         while current_step < self.max_steps:
             current_step += 1
 
             print(f"--- 第 {current_step} 步 ---")
 
-            history_str = "\n".join(self.history)
-            prompt = REACT_PROMPT_TEMPLATE.format(
+            tools_desc = self.tool_registry.get_tools_description()
+            history_str = "\n".join(self.current_history)
+            prompt = self.prompt_template.format(
                 tools = tools_desc,
-                question = question,
+                question = input_text,
                 history = history_str
             )
 
             messages = [{"role":"user","content":prompt}]
-            response_text = self.llm_client.invoke(messages=messages)
+            response_text = self.llm.invoke(messages, **kwargs)
 
             if not response_text:
                 print("错误:LLM未能返回有效响应。")
                 break
 
             thought, action = self._parse_output(response_text)
+
             if thought:
                 print(f"思考: {thought}")
 
             if not action:
                 print("警告:未能解析出有效的Action，流程终止。")
                 break
-
-            if action.startswith("Finish"):
-                final_answer = re.match(r"Finish\[(.*?)\]", action, re.DOTALL).group(1)
-                print(f"🎉 最终答案: {final_answer}")
-                return final_answer
-            
-
-            tool_name, tool_input = self._parse_action(action)
-            if not tool_name or not tool_input:
-                # ... 处理无效Action格式 ...
-                continue
-
-            print(f"🎬 行动: {tool_name}[{tool_input}]")
-
-            tool_function = self.tool_executer.getTool(tool_name)
-            if not tool_function:
-                observation = f"错误:未找到名为 '{tool_name}' 的工具。"
             else:
-                observation = tool_function(tool_input)
+                if  action.startswith("Finish"):
+                    final_answer = re.match(r"Finish\[(.*?)\]", action, re.DOTALL).group(1)
+                    print(f"🎉 最终答案: {final_answer}")
+                    self.add_message(Message(input_text, "user"))
+                    self.add_message(Message(final_answer, "assistant"))
+                    return final_answer
+    
+                tool_name, tool_input = self._parse_action(action)
+                if not tool_name or not tool_input:
+                    # ... 处理无效Action格式 ...
+                    continue
 
-            print(f"👀 观察: {observation}")
+                print(f"🎬 行动: {tool_name}[{tool_input}]")
 
-            self.history.append(f"Action: {action}")
-            self.history.append(f"Observation: {observation}")
+                observation = self.tool_registry.execute_tool(tool_name,tool_input)
+                self.current_history.append(f'Action: {action}')
+                self.current_history.append(f'Observation: {observation}')
 
-        print("已达到最大步数，流程终止。")
-        return None
+                print(f"👀 观察: {observation}")
+
+        final_answer = "抱歉，我无法在限定步数内完成这个任务。"
+
+        self.add_message(Message(input_text, "user"))
+        self.add_message(Message(final_answer, 'assistant'))
+        return final_answer
     
     def _parse_output(self, text: str):
         """

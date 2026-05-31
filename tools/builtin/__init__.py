@@ -1,7 +1,11 @@
-from .search import SearchTool
+from .search import SearchTool, search_serpapi, search_tavily, search_hybrid
 from .calculator import CalculatorTool
 
 __all__ = [
     "SearchTool",
-    "CalculatorTool"
+    "search_serpapi",
+    "search_tavily",
+    "search_hybrid",
+
+    "CalculatorTool",
 ]
